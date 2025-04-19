@@ -1,5 +1,7 @@
+from html import unescape
+import re
 from .sign import Sign
-
+import json
 import requests
 from datetime import datetime, timedelta
 
@@ -27,21 +29,33 @@ class BrankoSign(Sign):
         json_resp = r.json()
         date_start = datetime.strptime(
             json_resp['oroscopo'][0]['createdAt'],
-            '%Y-%m-%d  %H:%M:%S'
+            '%Y-%m-%d %H:%M:%S'
         )
+
         if kind == 'today':
             date_end = date_start + timedelta(days=1)
-        
+
         if date_start:
             date_start = date_start.date()
 
         if date_end:
             date_end = date_end.date()
 
+        oroscopo_raw = json_resp['oroscopo'][0]['oroscopo']
+
+        match = re.search(r'"articleBody"\s*:\s*"((?:\\.|[^"\\])*)"', oroscopo_raw, re.DOTALL)
+
+        if match:
+            article_body_raw = match.group(1)
+            article_body = json.loads(f'"{article_body_raw}"')
+            article_body = unescape(article_body)
+        else:
+            article_body = 'Contenuto non trovato'
+
         return Response(
-            json_resp['oroscopo'][0]['oroscopo'],
+            article_body,
             date_start, date_end
         )
-
+    
     def today(self):
         return self._generic_request('today')
